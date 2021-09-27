@@ -1,0 +1,201 @@
+---
+title: "Class 1: Further Exploration"
+author:
+date:
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE)
+```
+
+```{r, echo = FALSE}
+rm(list = ls())
+```
+
+_These are additional exercises that build upon the topics covered in the first class. We'd like to get a sense for whether this is all straightforward to you, or whether you find some of these calculations/commands challenging. Please complete the following questions in RStudio as a __script__ and be prepared to share your code with us at the next class meeting._
+
+First off, if you haven't already, please clone the class github repository to your system.
+
+Next, create a directory on your computer to store class materials (like the script you are writing for this exercise).
+
+- Specifically, create a home directory, `CompBio2021`. You can put this wherever it makes sense to do so, but be aware of where it is going. (Documents? Desktop? Home?)
+- Create a subdirectory within `CompBio2021` named `Class1`
+
+  _Some notes:_
+
+  -_notice that the suggested directory names above don't have spaces. This is intentional. In general **never use spaces in your filenames ever again if you think you might want to access them from the command line or through R**._
+
+  -_if you like the aesthetic of spaces, let us introduce you to your new friend, the underscore_: ( _ )
+
+-------------------------
+
+### 1) Data types and conversion
+We explored data types and conversion between different classes.
+
+  - assign the value of 0 to `z`
+  - what class is `z`?
+  - what is the value of `z` if you convert it to `logical`?
+    What about if you first assign the value of 560 to `z`?
+    What about if you first assign the value of -10 to `z`?
+
+    _This underscores an often useful feature of how `logical` values convert to `numeric` values. We make use of this feature, for instance, when calculating the frequency with which a certain condition is met, or when calculating a p-value for a permutation test._
+
+------------------------
+
+### 2) Choosing a set of random numbers 
+
+We discussed in class how to choose a set of random numbers (in this case, to give us something to work with). Let's create a set of 100 random numbers that are drawn from a _normal distribution_ with a mean of 0 and a standard deviation of 1. We will assign it to `n`
+
+```{r}
+set.seed(2021)
+n = rnorm(100, mean = 0, sd = 1)
+```
+(remember that `set.seed` ensures that the random numbers are the same random numbers for everyone.)
+
+- evaluate the distribution of your random numbers using the function `hist`, as in `hist(n)`. You should hopefully see a distribution that was plausibly drawn from a normal distribution.
+
+- calculate the `mean` and the standard deviation (`sd`) of your numbers.
+
+```{r, echo = FALSE, eval = FALSE}
+hist(n)
+```
+
+```{r, echo = FALSE, eval = FALSE}
+mean(n)
+sd(n)
+```
+
+--------------------------
+
+### 3) Using logical indexing to learn about your data 
+
+Suppose that these 100 random numbers are your data from an experiment (perhaps the log<sub>2</sub>(fold-change) in gene expression following treatment with a putative cure for cancer). These data look pretty good and you now want to know _which_ data points have greater than a 2-fold _increase_ (≥ log<sub>2</sub> 1) in expression.
+
+- using logical indexing, generate a logical vector of the elements in `n` that satisfy this criteria.
+
+That probably looks like a mess. `R` has a helper function, `which`, that will return the index position of elements that are `TRUE`.
+
+- using logical indexing and the `which` function, generate a numeric vector of the positions of values that satisfy this criteria.
+
+Sometimes we don't need to know the details precisely of which elements satisfy criteria, but rather we just need to know, from a sample of 100, how many elements satisfied the criteria. There are three easy ways to do this, two of which we'll explore here, and the third we will introduce below:
+
+- the `which` function returns the index of values that satisfy the criteria. We could just count the number of elements returned by `which`. Try using the function `length` to calculate this.
+
+- Above in question 1, we saw that all non-zero values in a numeric vector convert to `TRUE` in a logical vector. Vice-versa, all `TRUE` values equal 1, and all `FALSE` values equal 0. You could therefore use the `sum` function on the logical vector to count the number of elements that satisfy the criteria.
+
+_Note! this is a place where mistakes can be made if you mix approaches. Calling `length` on a logical vector returns the total number of elements. Calling `sum` on the product of `which` will sum the index positions. Be aware of what you are trying to do, and don't mix approaches._
+
+----------------------------
+
+### Interlude: loading up a data frame and getting acquainted
+
+```{r, eval = FALSE}
+# for the following exercises, we want some numbers to work with.
+# R includes several built-in datasets for use as examples. Here we will use
+# the iris dataset. In R, enter:
+
+iris
+
+# what you should see is a table (a data.frame, in fact) print to screen.
+# How big is it?
+
+dim(iris)
+
+# the dim() function tells you the number of rows and columns in the target.
+# iris contains 150 rows and 5 columns. What are the column names?
+
+colnames(iris)
+
+# we see that we have four measurements of petal/sepal dimensions, as well as
+# an identifier of the species of iris. We can specify any individual column
+# (or row) of the dataset using a combination of brackets and the index of the
+# column (or row). For instance:
+
+iris[,1]
+
+# will return all the values of the first column. What is the name of that
+# column?
+
+colnames(iris)[1]
+
+# See how that works?
+
+# When dealing with data.frames with named columns (or rows), there are two
+# other ways to get the data you want. First, you can use the name of the
+# column instead of the index position of the column. Like this:
+
+iris[,'Sepal.Length']
+
+# Alternatively, you can use $ notation and save yourself some keystrokes.
+
+iris$Sepal.Length
+
+# In either case, we can convince ourselves that the output is equivalent by
+# using some logical operations. Here we introduce all(), which asks "are all
+# elements of the logical input vector true?"
+
+all(iris[,1] == iris$Sepal.Length)
+
+# This should convince us that the two methods yield equivalent data.
+
+# How many different species are there?
+# There are at least two different ways to answer this quickly:
+
+# method one, use the unique() function.
+
+unique(iris$Species)
+
+# this returns all of the unique elements of the Species column. Method two
+# returns each unique name, but further will count the number of members
+# associated with each element. To do this, we use the table() function.
+
+table(iris$Species)
+
+# The output of table() is something new for us. Look at the output. It has 1)
+# numeric values, like a regular numeric vector; and 2) names for each position
+# of the numeric vector. The output of table() is itself index-able through
+# bracket notation.
+
+table(iris$Species)[2]
+
+# The names assigned to each element in the output of table() are also accessible
+# through the function names().
+
+names(table(iris$Species))
+
+# and this output is subsettable as well using bracket notation.
+
+names(table(iris$Species))[2]
+
+# We will now use the iris dataset for a handful of additional exercises.
+```
+
+### 4) More logical indexing on data frames
+
+We discussed in class how a combination of _bracket notation_ and _logical indexing_ allows a user to subset a long vector (or matrix) based on membership in a particular class that meets specific criteria. For each of the requests below, write a single command that will return:
+
+- all of the Sepal Lengths of the virginica species.
+- all of the Petal Lengths greater than 2.
+- the average Sepal Width overall.
+- all of the Petal Widths that are greater than the average Petal Width.
+
+----------------------------
+
+### 5) The `table` function
+
+The `table` function, introduced above, is incredibly valuable for summarizing datasets. Above, `table` told us that for each of the three different species, there are 50 sets of measurements. Using the `table` function, it should be possible to calculate in a single command:
+
+- the number of Petal Lengths overall that are greater than 2.
+- the number of Petal Lengths for the virginica species that are greater than 2.
+- the number of Petal Lengths for the setosa species that are greater than 2.
+
+----------------------------
+
+### 6) Using functions on subsets of data
+
+Finally, what we really want to do is to summarize the per-species data and just calculate the `mean` per species.
+
+- What is the average Petal Length for each of the three species?
+
+_This last one is hard if you haven't done this kind of thing before. Within the set of functions we have discussed in this set of exercises, it should be possible to write (at a minimum) three independent commands (one for each species) that will make this calculation. If you have enough experience with R that this is easy to do, please explore the help for `?tapply` and show us how to calculate this in one line._
