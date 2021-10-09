@@ -1,0 +1,637 @@
+---
+title: "R For Biologists Class 6: Plotting Lecture 1 and Activity"
+author: "Shelby Blythe and Erik Andersen"
+date: "10/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction:
+
+There is nothing worse than bad graphs and data visualization. As a highly judgmental scientist, if I see bad plots, I assume that not much thought went into a project or presentation. R provides several avenues for generating top-notch plots and data visualization, providing the resources for excellent presentations. The majority of the work, however, comes with interacting with the data and *asking questions of it*.   
+
+Normally we do lectures in this course, but this lecture will be more of a demonstration. Rather than just show you "this is how you make a scatterplot," I'd like to motivate "this is why you would want to use a scatterplot, and this is how you make one from a complex table." I can't think of any way to do that besides having you work along with the examples.
+
+R comes pre-loaded with pretty great graphing and data visualization capabilities. For some tasks, base-R `plot()` will do a perfect job. But while we've emphasized in the course the often several ways to achieve one task, for plotting, we want to bear down on a single approach that is as good as base-R plotting, and which meshes well with `tidyverse` operations that we will have occasion to use as modern biologists. This alternate plotting library is called `ggplot2`. 
+
+As you will see, there are myriad ways to plot data using `ggplot2`. There are also myriad options and mistakes that one can make. Many google searches are in your future. Learning to fluently conduct a dialog with your data through graphing is a skill that takes time to develop. Our goal here is to provide you with a base to start exploring this package, and to introduce you with relevant plotting styles that you may encounter as a person interested in the various -seq analyses.
+
+The internet is full of excellent tips for using `ggplot2`. Some of the dedicated sites that I found useful for learning and preparing this lecture are:
+
+* https://www.r-graph-gallery.com/index.html
+* https://www.rstudio.com/resources/cheatsheets/
+* https://www.cedricscherer.com/2019/08/05/a-ggplot2-tutorial-for-beautiful-plotting-in-r/
+* http://r-statistics.co/ggplot2-Tutorial-With-R.html
+
+(The last one is a good place to start.)
+
+## Overview:
+
+In the following, we will be working with the `flights` dataset, primarily the measurement of 'departure delays' as an analogy for a dataset that resembles genomics data signals. In addition to a bare-bones introduction to `ggplot2`, we will be discussing how to visualize data using **heatmaps**, we will use an **x-y scatterplot with error bars** to visualize the average flight delays as a function of time, and we will use **histograms** and **density plots** to visualize the distribution of average daily delays. Finally, we will explore how to use "facets" to pop-out datasets by group. 
+
+As we have been doing throughout the course, we will explain in detail several critical 'moves' you can do with R. In this case, many of the moves involve summarizing `flights` using `dplyr` operations. We can't explain them all, however, and you will likely need to make extensive use of the `help` function as well as an internet search engine to fully follow. The point here is that we want to motivate these different types of plots, and demonstrate some of the thought processes that may come along with analysis of a large and complicated dataset: to highlight the dialog that one can have with data. 
+
+### Factors:
+
+There is one big thing that we can't overlook and which we haven't been able to cover in depth in this course yet thus far. **Factors** are a type of data in R that, as we will see, are part of the system that allows R to rapidly group and classify data. 
+
+A **factor** is most easily defined either as a category or an enumerated type. We've encountered data.frames with descriptive columns that tell us something about the group a row of data belongs to:
+
+```{r, echo = FALSE}
+set.seed(2021)
+df = data.frame(counts = round(runif(5, min = 2, max = 31)), category = c('apple', 'orange', 'orange','apple','apple'))
+
+df2 = df
+df2$category = as.factor(df2$category)
+df
+```
+
+In this data frame, the `$category` column seems like it tells us about what group the `$counts` data belongs to. We can see that in this limited example, there are only two different categories. 
+This column, however, is of class `character`, and so each entry has however many elements and is repeated over and over. 
+
+The `factor` class is a more efficient way to store categorical data. If instead we convert the `$category` column to `factor` class, 
+
+```{r, echo = FALSE}
+print(df2)
+```
+
+the data are the same, but what you can't see is that the characters "apple" and "orange" are stored only once (as `levels`), and the actual data in the column is the integer value that represents "apple" (= 1) and "orange" (= 2).
+
+```{r}
+levels(df2$category)
+```
+
+This allows us some flexibility in terms of naming what each category is. For instance, specifying that the `level` of the factor should instead be slightly more specific, 
+
+```{r}
+levels(df2$category) = c("fuji", "clementine")
+df2
+```
+
+renames all of the associated factors without having to specify which one is which. This is useful. 
+
+Because each level is associated with an integer value (e.g., fuji = 1), it also allows us to `order` data in terms of the associated factors. 
+
+```{r}
+df2[order(df2$category),]
+```
+
+If categories stored as `character` classes, as in `df` below, you can also `order` on the basis of the column, but it will always be alphabetic. 
+
+```{r}
+df[order(df$category),]
+```
+
+In contrast, `factor` object can be releveled to provide for ordering relative to a different reference level.
+
+```{r}
+df2$category = relevel(df2$category, ref = 'clementine')
+df2
+
+```
+(Doesn't change the order of the data.frame by itself, but:)
+
+```{r}
+df2[order(df2$category),]
+```
+
+We will be using `factor` values below to impose order on our data, and we will relevel them at times to change the order in which we plot.
+
+# Demonstration
+
+### Set up the workspace:
+
+As always:
+```{r, message = FALSE, warning = FALSE}
+rm(list = ls()); gc()
+```
+
+Load the necessary packages:
+
+```{r, message = FALSE, warning = FALSE}
+library('nycflights13')
+library("tidyverse")
+library("ggplot2")
+library("zoo")
+library("ggExtra")
+library("ggthemes")
+```
+
+### Flights
+
+Again, we will be looking at `flights`. But we are biologists, not airline executives: why focus on `flights`? The short answer is that this `flights` dataset raises issues that you will encounter whether you are analyzing RNA-seq data, or quantifying an image. All data is a representation of signals as a function of something we understand, like a part of a cell, a position on a chromosome, or a day of the year. The analogy to genomics is easier to see. I will introduce some basic plotting functionality of the `ggplot2` library (enhanced with a couple of add-ins loaded above). Once we look at the data, the analogy should be clear. 
+
+Let's use `dplyr` to subset the `flights` data so we can just have a look at what was happening in January, 2013 over the three airports that serve the NYC area. 
+
+```{r}
+jan.flights = flights %>% 
+  dplyr::filter(month == 1)
+```
+
+The command above that subsets the flights data for all rows that contain a value for month equal to 1 should be obvious and intuitive to you all by now. 
+
+The `ggplot2` package is built to plot data using the syntax and practices of the 'tidyverse'. 
+
+To plot, for instance, the departure delay as a function of the date, we do the following.
+
+```{r, fig.height = 5, fig.width = 5, warning = FALSE}
+ggplot(jan.flights, aes(x = time_hour, y = dep_delay)) + 
+  geom_point(size = 0.5)
+```
+
+This is a no-frills plot that shows the date on the x-axis, and the departure delay on the y. The way this works is that:
+
+1) you run the `ggplot` function giving it `data` in the form of a data.frame object you are interested in. 
+
+2) you specify what you want to plot using 'aesthetics' (`aes()`). Below, we say that we want to plot the date-time on the x, and the departure delay on the y. 
+
+```{r, eval = FALSE}
+ggplot(jan.flights, aes(x = date_time, y = dep_delay))
+```
+
+However, this alone will not yield a plot. What this command does is effectively set up _what_ you want to plot, but it does not specify _how_ to plot it. To do this we have to use the "geoms", namely, specific commands from `ggplot` that specifies the type of plot to generate.
+
+3) using `+` notation, add a 'geom'. In this case, we think an x-y scatter format is probably a good one:
+
+```{r, eval = FALSE}
+ggplot(jan.flights, aes(x = time_hour, y = dep_delay)) + 
+  geom_point(size = 0.5)
+```
+
+And if that code were to run, you'd get exactly the plot above. The `+` notation allows you to keep adding commands. For instance, I don't think we need to see the biggest outliers in the data. Let's adjust the y-axis. And, I don't like the color. And those labels could use some work. __Note also, that this call to `ggplot` plus all the add-ons can be assigned to an object name. This will not generate a plot unless you call the object in a separate command.__
+
+```{r, fig.height = 5, fig.width = 5, warning = FALSE}
+plot1 = ggplot(jan.flights, aes(x = time_hour, y = dep_delay)) +
+  geom_point(color = 'darkgrey', size = 0.5) + 
+  ylim(c(0,500)) +
+  labs(x = 'time', y = 'departure delay (minutes)') +
+  theme_clean()
+
+plot1
+```
+
+To begin to draw the analogy, recall in a prior class that it appeared that there is some kind of an underlying trend in these data. We saw this by hand-writing a `for-loop` that calculates a rolling average. Below, we will calculate a rolling average not by hand, but by using the `rollmean` function from the `zoo` package. We will _add this_ to the previous plot.
+
+To do this, we don't have to re-write the entire plot function above, but rather, we can just `+` new stuff to the old plot. This is nice.
+
+```{r, fig.height = 5, fig.width = 5, warning = FALSE}
+my.rolling.average = rollmean(jan.flights$dep_delay, k = 100, na.pad = TRUE, na.trim = TRUE) # "calculate a rolling average with window size of 100. Add NAs to pad the shift in vector length that results from calculating this average, and trim away any NAs in the input data, just like `na.rm` does for base-R functions."
+
+plot1 + 
+  geom_line(aes(x = time_hour, y = my.rolling.average), color = 'gold')
+```
+
+Let's make some observations.
+
+1) The data have a clear periodicity. Flights run from some point in the morning until late in the evening, and there is a break. The periodicity is associated with an organizational unit equal to a day. 
+
+2) Not so much from the grey dots, but definitely from the yellow rolling averages, when there are delays, they tend to be worse in the evening. 
+
+3) On a per-day basis, some days are bad. Some days are good. 
+
+This is not unlike a genomics dataset, where you have an organizational unit (like a _gene_), and you have counted something as a function of that organizational unit (like the coverage of an RNA-seq read over a part of a gene). Some units show one 'behavior', others show another.
+
+We also know other things about the data that we are curious about exploring:
+
+1) are certain months worse than others? The weather, for instance, is pretty terrible in January in the NYC region.
+
+2) these trends are for flights operated by 16 carriers originating from three different airports. Is one airport worse than another? Is one carrier worse than another? 
+
+As well as several other questions that we would definitely want to explore if we were trying to say something about this data. 
+
+__To get at this, we want to generate plots that allow us to explore trends in the entire dataset. To do this, we have to combine data manipulation and summarization with plotting skills.__
+
+### Visualizing everything: Heatmaps
+
+We could try to summarize the data for the entire year using a combination of rolling averages and scatterplots. But this leads to diminishing returns once the data is sufficiently large. A way that is definitely useful both here and in genomics analysis is __to take advantage of the fact that the data are plotted as a function of a thing with regular structure and organization__. Here, we have days. In genomics we have genomic features, such as genes or enriched peaks of signal. __We can use a _heatmap_ to visualize signals within multiple repetitive structures all in one go.__
+
+Before we can do that, we need to process our data somewhat. __When we plot, we often make choices about how to summarize data. This is where it is important to not only make good, reproducible choices, but also for the code that generates those choices to be accurate and correct.__ This is where you should be very critical and ensure you are doing the right thing. Let's start:
+
+__What is a heatmap?__
+
+A heatmap is simply an _image_. Your computer screen has an x-axis and a y-axis, and each position in the _plane_ of the screen is defined by a pixel, which is itself defined by its position in the x- and y- axis. The pixel takes on a value from 0 to 255 (in the case of 8-bit data), and this renders the complex image you see with your eyes. In our case, these image axes can be thought of as x = columns, y = rows. 
+
+One way to think of a heatmap then, is as a [row,column] matrix where each position in the matrix is a summary of the data. In the case of departure delays in `flights`, this could look like: each row is a day, and each column is some unit of time. We would therefore have 365 rows (one for each day). But what about the columns? Not all days have flights that depart at the exact same time, so it would be hard to plot just like that. What we do have, however, is knowledge that the day breaks down into hours, and we have the original scheduled departure time. __To solve the issue of different scheduled departure times on different days, we can _bin_ the time into regular units, and calculate the average per bin__.
+
+Making a matrix is one way to generate a heatmap. However, `ggplot` and `dplyr` provide us with a simpler way to do this. Instead of actually constructing the matrix, what we can do is generate a data.frame with our data to plot, as well as a value that identifies what day or what time (bin) a third value belongs to. Then the plotting function takes care of the rest. 
+
+__Binning time__
+
+Below, we generate a new data.frame that is an add-on to `flights` where we introduce a column that defines membership in a single day on the table, and another column that identifies what hourly bin an observation belongs to. 
+
+_note, normally the commands below could be done in a `dplyr` one-liner. I have broken it into individual commands (for the binning) so it is clear what is happening._ 
+
+```{r}
+date.bin = as.numeric(as.Date(paste(flights$year, flights$month, flights$day, sep = '-')))
+date.bin = as.factor(date.bin - min(date.bin) + 1)
+
+# line 1 pastes together the year-month-date (separated by a hyphen), renders it as a Date object, and then renders it as a numeric object. This is one way to get a date serial number. We don't need to know what date specifically we are dealing with, we just want to know the sequential order of the dates.
+
+# Because the serial numbers start somewhere around 15700, we would like to make the first serial number be '1'. That's what the second line does, and also renders it as a 'factor' data type. 
+
+hour.bin = cut(flights$sched_dep_time, breaks = seq(0,2400, by = 100), labels = FALSE)
+hour.bin = as.factor(hour.bin)
+
+# line 1 above uses the function cut() to take the scheduled departure times and returns a vector that indicates membership in bins determined by the option "breaks". I've given "breaks" a vector that goes from 0 to 2400 (i.e., from midnight to midnight) by 100, which effectively separates hours in the way they are represented in the flights data. The 'labels = FALSE' option is a peculiarity of the cut() function. It just has to be this way to get nice data from it. 
+
+# line 2 converts the output from line 1 into a factor data type. I just broke this out to be clear.
+
+flights.new = flights %>% 
+  bind_cols(date.bin = date.bin, hour.bin = hour.bin)
+
+# and we append these two new lines to a new object "flights.new" so that we don't overwrite the original. Here we used the `bind_cols` function to simply attach these columns to the original dataset. 
+
+```
+
+With these two new columns, we can now calculate a new data.frame that contains our averages per day and hour bins.
+
+```{r}
+binnedMeans = flights.new %>% 
+  group_by(date.bin, hour.bin) %>% 
+  summarize(mean.delay = mean(dep_delay, na.rm = TRUE)) %>% 
+  select(date.bin, hour.bin, mean.delay) %>% 
+  ungroup()
+
+binnedMeans
+```
+
+So, in plain language, each row of `binnedMeans` has a value `mean.delay` that is the average departure delay for any flight that was scheduled to depart on a particular day within a one hour bin. Note that it doesn't have data for all possible bins, particularly for the hour bins. In fact, I know there is one outlier in this dataset (scheduled departure at 2 am, but never left and so the mean value is NA). We will purge it when we plot but leave it in place in the calculated data. 
+
+__Plotting the heatmap__
+
+We have now all the data we need. A set of values to plot, and their x and y coordinates in the image we want to make. 
+
+`ggplot` has a "geom" that is useful in this case: `geom_tile`. If we just plot without much in the way of 'polishing' the plot, this is what you get. Remember, it is intuitive: we want to pass data to `ggplot`, we want to use `aes()` to tell it what about that data is to be plotted on the x and y axis, and then we tell `geom_tile` what values to plot in the positions we've specified.
+
+```{r, fig.height = 8, fig.width = 4, warning = FALSE}
+
+heatmap1 = ggplot(filter(binnedMeans, hour.bin != 2), aes(x = hour.bin, y = date.bin)) +
+  geom_tile(aes(fill = mean.delay))
+
+heatmap1
+```
+
+While that looks promising, there are obviously some things we'd like to tweak.
+
+1) The y-axis is going in the wrong direction (time flows left to right, or top to bottom)
+
+2) Those colors suck.
+
+3) Those labels are undesirable.
+
+When I plotted this the first time, knowing very little about `ggplot`, I used my friend Google to solve these problems and what I learned is:
+
+* The y-axis is reversed because that is the order that it plots in, bottom to top. The order is determined not by the numeric value, in this case, but rather a property of the `factor` object that is the "date bin". To get it to go in the right direction, we have to reverse the `levels` of the `factor`. This can be a pain, and the easiest way to do it was to use a helper function `fct_rev` in the "tidyverse" that is part of the `forcats` package.
+
+* Changing the colors can be done a number of ways, I'll show the `scale_fill_gradient()` function. 
+
+* Changing the scale of the axes is ugly. Perhaps Erik knows of a more elegant way to do it, but we use `scale_x_discrete` and `scale_y_discrete` below to solve this issue. The axis labels can easily be changed using `labs`. (Note these are all bits that run within `ggplot2`).
+
+A nicer heatmap:
+
+```{r, fig.height = 8, fig.width = 4, warning = FALSE}
+daysPerMonth = c(31,28,31,30,31,30,31,31,30,31,30,31)
+
+heatmap2 = ggplot(filter(binnedMeans, hour.bin != 2), aes(x = hour.bin, y = 
+                                                            forcats::fct_rev(date.bin))) + 
+  geom_tile(aes(fill = mean.delay)) + 
+  scale_fill_gradient(low = 'white', high = 'darkblue') + 
+  labs(title = 'Departure Delays: 2013', y = 'days', x = 'hours') +
+  scale_x_discrete(expand = c(0,0), breaks = c(5, seq(0, 24, by = 4))) +
+  scale_y_discrete(expand = c(0,0), breaks = cumsum(c(0, daysPerMonth))) + 
+  theme_base() + 
+  theme(axis.text.y = element_blank())
+
+heatmap2
+```
+
+This looks a little nicer. In any case, we are now looking at a representation of the departure delays over the entire year as a function of hours in the day. We've adjusted the colormap to be more aesthetically pleasing, and to clearly show days (rows) where there were delays. The days are now in order from jan to dec (top to bottom).
+
+One last variant is that we don't have to keep the y-axis of this plot "in order". We can order the elements on the y-axis by some value. Currently, the order of the y-axis is determined by the factor level on the date.bin. We can just relevel using an ordering vector based on the overall per-row mean.
+
+```{r, fig.height = 8, fig.width = 4, warning = FALSE}
+orderer = binnedMeans %>% 
+  filter(hour.bin != 2) %>% 
+  group_by(date.bin) %>% 
+  mutate(o = signif(sum(mean.delay, na.rm = TRUE), 4))
+
+orderer$o = factor(orderer$o, levels = sort(unique(orderer$o)))
+
+ggplot(orderer, aes(x = hour.bin, y = o)) + 
+  geom_tile(aes(fill = mean.delay)) + 
+  scale_fill_gradient(low = 'white', high = 'darkblue') +
+  labs(title = 'Departure Delays: 2013', y = 'days (ordered by sum(delay))', x = 'hours') +
+  scale_x_discrete(expand = c(0,0), breaks = c(5, seq(0, 24, by = 4))) +
+  theme_base() + 
+  theme(axis.ticks.y = element_blank(),
+        axis.text.y = element_blank())
+
+```
+
+Different orderings of the y-axis allow us to see different features of the data. In sequential order, we see the trend with respect to the overall year and seasonal trends. However, in this order we get a sense (we build an intuition) about the _fraction of time_ that a day is _a bad one_. More on this later.
+
+### Plotting a 'meta-day' profile
+
+Heatmaps are nice, but we can also attempt to summarize them by calculating the column-wise average value and generate a 'meta-day' profile. Note, that by having set up the heatmap above, we can easily plot the column-wise averages using a couple of extra commands in `dplyr`. 
+
+Again, you could do all of this internal to a call to `ggplot`, but I will break out the steps and generate additional workspace object to show you step-by-step.
+
+What we will do is 1) calculate the column wise-average, which is just calculating the average of the data 'grouped by' the `hour.bin`. 2) calculate the number of observations per bin. 3) calculate the standard deviation per bin. 4) calculate the standard error of the mean. 
+
+_Note, the calculation is performed on the original dataset `flights.new`, not the binned mean dataset._
+
+```{r}
+metaDay = flights.new %>% 
+  ungroup() %>% 
+  group_by(hour.bin) %>% 
+  summarize(metaMean = mean(dep_delay, na.rm = TRUE), n = n(), sd = sd(dep_delay, na.rm = TRUE)) %>%
+  mutate(sem = sd/sqrt(n))
+
+metaDay
+```
+
+Now that we have this calculation done, we can use `ggplot` with `geom_point` to plot the mean values, and `geom_errorbar` to give us errorbars. These functions layer, so we build them in reverse order. 
+
+```{r, fig.height = 5, fig.width = 5, warning = FALSE}
+ggplot(filter(metaDay, hour.bin != 2), aes(x = hour.bin, y = metaMean)) +
+  geom_errorbar(aes(ymin = metaMean - sem, ymax = metaMean + sem), width = 0.1) +
+  geom_point(color = 'forestgreen', size = 2) +
+  labs(x = 'scheduled departure hour (0 to 24)', 
+       y = 'binned mean departure delay ± s.e.m.',
+       title = 'Mean Departure Delays: 2013') + 
+  theme_clean()
+```
+
+This looks reasonable. What I mean when I say this is that the 'meta-day' plot looks like what I would imagine you would get if you plotted the average column intensity of the heatmaps above. Even the error bars look pretty good (which only means we are quite confident we know the average delay by hour over the entire year, the flight to flight variance is much broader, as we will see.)
+
+__You may be asking yourselves: as we saw with the heatmap this calculation has both 'good days' and 'bad days' in it. Are the good days significantly better than the bad days? How bad does it get?__
+
+### Defining the bad days: Histograms
+
+Here is a decision that we all have to make during an analysis: I see something in the data, how do I define it and reliably and reproducibly pull it out of the data? 
+
+_There is no perfect answer to this question, only better and worse ones. This is where you propose **hypotheses** about your data and test whether they are reasonable._
+
+As a first-pass hypothesis, you might say... what if I plot the _distribution_ of overall daily delays (i.e., the average of data grouped on not the hourly bin, but the daily bin)? Does the distribution tell me anything? Does it suggest a _cutoff threshold_ to choose 'good' versus 'bad'? 
+
+At first, approaching these hypotheses can be very improvisational. With practice, you will learn (for your data type) what approaches tend to work, and which ones do not. As above in the heatmap demonstration, we felt that we could _see_ at least two classes of data (good days, bad days) when we ordered the y-axis of the heatmap by the summed or average delay over the entire day. Let's start there, but instead of doing a whole heatmap, let's look at the distribution of summed daily delays over the entire year. 
+
+To do this, we want to plot a **histogram**. A histogram will show the frequency with which a value occurs as a function of the total range of values. Given what we've already plotted, we have _an intuition_ that somewhere around 25% to 30% of the 'days' are 'bad ones'. 
+
+To plot a histogram with `ggplot`, we use `geom_histogram`.
+
+```{r}
+meanDaily = flights.new %>% 
+  group_by(date.bin) %>% 
+  summarize(dailyMean = mean(dep_delay, na.rm = TRUE))
+
+ggplot(meanDaily, aes(x = dailyMean)) +
+  geom_histogram(binwidth = 4, color = 'midnightblue', fill = 'slateblue') + 
+  labs(title = "Average Delay Distribution: 2013", 
+       x = 'average daily delay', 
+       y = 'count') +
+  theme_clean()
+```
+
+This is a fairly common distribution to observe. Most of our elements are close to background. They mass up on the left hand side of the plot. There is also a long tail to the right. This is where there are significant deviations from the average behavior of the thing we are measuring. 
+
+Another way to look at data like this is to plot the "kernel density estimate", which is just essentially a smoothed version of the histogram. We can also do this with a `ggplot` 'geom'. 
+
+```{r}
+ggplot(meanDaily, aes(x = dailyMean)) +
+  geom_density(color = 'midnightblue', fill = 'slateblue', lwd = 1) + 
+  labs(title = "Average Delay Distribution: 2013", 
+       x = 'average daily delay', 
+       y = 'density') +
+  theme_clean()
+```
+
+Density plots are particularly useful for comparing different conditions. For instance, what if you subset these data by the airport of origin? This problem is explored in the **Class Activities** that follow this narrative. 
+
+**Deciding on a threshold**
+
+Whether you are performing genomics analysis, or image analysis, we want to use distributions like these to decide what our quantitative threshold will be for saying a day (in this case) is a good one or a bad one. In image analysis, the density plot above would be fit to a fourth-order polynomial and the first minimum would be called as 'the threshold'. This is known as Otsu global thresholding. In genomics, one fancy approach would be to 'fit' the distribution above to a statistical distribution (however usually 'fitting' is not the correct term), and then we could assign a p-value to each measurement and choose a p-value threshold (usually 0.05) to distinguish between regions that are significantly likely to not have been drawn from the mean distribution. 
+
+Both of those approaches take work but are likely to yield robust and justifiable results. For the purposes of this demonstration, let's approach the problem more intuitively and ask "what days had an above-average delay?"
+
+We can easily calculate this threshold with the data we have:
+
+```{r}
+thresh = ceiling(mean(meanDaily$dailyMean, na.rm = TRUE))
+thresh
+```
+
+We round up here (`ceiling`) just to keep the numbers clean, and also because we know by using the average of the entire distribution, we are probably including a few borderline cases. 
+
+We can visualize where the mean of this distribution sits on the density plot through use of a different `ggplot` 'geom', `geom_vline`, which will plot a vertical line. (There is also `geom_hline` and `geom_abline` to plot other lines (horizontal or through coefficients like slope and intercept)). We also annotate the information on the plot using the `ggplot` function `annotate`. 
+
+```{r}
+ggplot(meanDaily, aes(x = dailyMean)) +
+  geom_density(color = 'midnightblue', fill = 'slateblue', lwd = 1) + 
+  labs(title = "Average Delay Distribution: 2013", 
+       x = 'average daily delay', 
+       y = 'density') +
+  theme_clean() +
+  geom_vline(xintercept = thresh, color = 'magenta', lty = 3, lwd = 0.75) +
+  annotate(geom = "text", x = 22.5, y = 0.05, label = paste0("mean = ", thresh))
+```
+
+And we see the compromise we get using this threshold, which for our purposes will allow us to define a set of good and bad days.
+
+Now that we have this, what we want to do is to use this threshold to call a logical vector that we can append to the `flights.new` data.frame, or any of its derivative data.frames so that we can plot calculations grouped by whether a day was good or bad. There are a number of ways to do this. Below, we use the strategy of appending the 'bad.day' logical vector to the object `meanDaily`, and then use this information to generate a 'bad.day' logical vector in the object `flights.new`. *Note: there is probably a more elegant `dplyr` one-liner to do this more efficiently.* 
+
+```{r}
+meanDaily = meanDaily %>% 
+  mutate(bad.day = dailyMean >= thresh)
+
+flights.new = flights.new %>% 
+  bind_cols(bad.day = date.bin %in% meanDaily$date.bin[meanDaily$bad.day])
+```
+
+In fact, because we've kept the naming of columns consistent across the tables derived from `flights.new`, we can easily append this logical vector to any of them in order to plot data for good and bad days. 
+
+Before we move on, we can check our intuition built on the heatmap and distribution plots about the number of good and bad days. Below, I use the `table` function to calculate the fraction of days in the year that are 'bad'. 
+
+```{r}
+table(meanDaily$bad.day)/nrow(meanDaily)
+```
+
+And this fits with what we expect, namely that about 1/3 of the days are 'bad' in terms of the average delays at NYC airports.
+
+### Subsetting data by category
+
+Now that we have defined a new category, we can return to our 'meta-day' plot and ask how different the departure delays are between good and bad days. To do this, we will define a new object `metaDay2` that takes into account whether a day was good or bad.
+
+```{r, fig.width = 5, fig.height = 5}
+metaDay2 = flights.new %>% 
+  ungroup() %>% 
+  group_by(bad.day, hour.bin) %>% 
+  summarize(metaMean = mean(dep_delay, na.rm = TRUE), n = n(), sd = sd(dep_delay, na.rm = TRUE)) %>%
+  mutate(sem = sd/sqrt(n))
+
+metaDay2
+# if you compare this with the original `metaDay`, the only thing we changed was adding the `bad.day` object in the call to `group_by`. 
+
+ggplot(data = filter(metaDay2, hour.bin != 2), mapping = aes(x = hour.bin, y = metaMean)) +
+  geom_errorbar(mapping = aes(ymin = metaMean - sem, ymax = metaMean + sem), width = 0.2) +
+  geom_point()
+```
+
+Here is the basic plot without any frills. That kind of works for us, but we can do better. With `ggplot`, you see that we've been doing things like specifying colors and shapes of points using options within the calls to the various "geoms". If we specify within `aes` a color to be equal to an element of the input data, it will parse this information and apply it to the graph. 
+
+For instance, if we want bad.day = TRUE to be one color, and = FALSE to be another, then:
+
+```{r, fig.height = 5, fig.width = 6}
+group.colors = c('slateblue', 'indianred')
+names(group.colors) = c("TRUE", "FALSE")
+
+gg1 = ggplot(data = filter(metaDay2, hour.bin != 2), mapping = aes(x = hour.bin, y = metaMean)) +
+  geom_errorbar(mapping = aes(ymin = metaMean - sem, ymax = metaMean + sem), width = 0.2) +
+  geom_point(mapping = aes(color = bad.day)) +
+  labs(x = 'scheduled departure hour (0 to 24)', 
+     y = 'binned mean departure delay ± s.e.m.',
+     title = 'Mean Departure Delays: 2013') + 
+  scale_color_manual(values = group.colors) +
+  theme_clean()
+
+gg1
+```
+
+Note that there are ways to alter the title of the legend as well as the names of each label in the legend. Pretty much everything about the plot is customizable. This plot confirms our suspicion that the overall mean we plotted before was significantly affected by the mixture of data from good and bad days. 
+
+Sometimes, you have more than two groups, or you want to see every group on a separate plot. There is an additional way to split by groups using "facets". Above, we assigned the output to an object, `gg1`, we can instead plot it as two separate plots using `facet_wrap`
+
+```{r, fig.height = 8, fig.width = 5}
+gg1 + facet_wrap(facets = vars(bad.day), nrow = 2)
+```
+
+This splits out the graphs depending on what facet you want to highlight, and can be very powerful for analyzing underlying trends in the data. 
+
+Some notes: `facet_wrap` has rules, like that it makes containers of equal size for each of the plots that it outputs. Sometimes, you want 'facets' of different sizes. For instance, if you wanted to subdivide our **heatmap** from before and have the size of each respective heatmap reflect the overall size of the members in each group. This is easier to see if I plot it:
+
+We first need to re-make the `binnedMeans` object with the `bad.day` logical vector. I will add the ordering vector `o` as well that we calculated for the heatmap with the rows ordered by intensity in case we need it. 
+
+```{r}
+binnedMeans2 = flights.new %>% 
+  group_by(date.bin, hour.bin) %>% 
+  summarize(mean.delay = mean(dep_delay, na.rm = TRUE), bad.day = any(bad.day)) %>% 
+  select(date.bin, hour.bin, mean.delay, bad.day) %>% 
+  mutate(o = signif(sum(mean.delay, na.rm = TRUE), 4)) %>% 
+  ungroup()
+
+binnedMeans2$o = factor(binnedMeans2$o, levels = sort(unique(binnedMeans2$o)))
+
+binnedMeans2
+```
+
+just to check that everything looks ok, we replot the heatmap on the new variable without faceting to make sure everything looks the same this time. . 
+
+```{r, fig.height = 8, fig.width = 4}
+heatmap3 = ggplot(filter(binnedMeans2, hour.bin != 2), aes(x = hour.bin, y = o)) +
+  geom_tile(aes(fill = mean.delay)) + 
+  scale_fill_gradient(low = 'white', high = 'darkblue') + 
+  labs(title = 'Departure Delays: 2013', y = 'days', x = 'hours') +
+  scale_x_discrete(expand = c(0,0), breaks = c(5, seq(0, 24, by = 4))) +
+  scale_y_discrete(expand = c(0,0), breaks = cumsum(c(0, daysPerMonth))) + 
+  theme_base() + 
+  theme(axis.text.y = element_blank())
+
+heatmap3
+```
+
+Now, we can facet by good and bad days. 
+
+```{r, fig.height = 8, fig.width = 4}
+heatmap3 +
+  facet_grid(rows = vars(factor(bad.day, levels = c("TRUE","FALSE"))), 
+             drop = TRUE,
+             space = "free_y", 
+             scales = "free_y") + 
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+```
+
+---------------------------------------------
+
+# Activities
+
+### 1) Density Plots and `group_by`:
+
+Above, we plotted a histogram of the mean daily airport departure delays. However, this was for all three airports in the NYC area: Newark (EWR), Kennedy (JFK), and LaGuardia (LGA). As we saw with the good days and bad days faceting, maybe one airport is contributing more than its fair share of delays? To quickly test this, we could repeat the density plotting, but instead of showing the data for all airports together, to calculate the average daily delay on a per-airport basis. This would be a daunting task with base-R, but `dplyr` makes quick work of it. 
+
+Here, I print the column names of our input dataset `flights.new`. If you execute all of the lines above the one below, it should be in your workspace. 
+
+```{r}
+colnames(flights.new)
+```
+
+The origin airport is stored in the column 'origin'. I will also reprint (but not execute) the code that generated the object `meanDaily` upon which we generated the density plot above. 
+
+```{r, eval = FALSE}
+meanDaily = flights.new %>% 
+  group_by(date.bin) %>% 
+  summarize(dailyMean = mean(dep_delay, na.rm = TRUE))
+```
+
+* Generate a new object, `meanDaily2` that calculates the mean daily departure delay not at all origin airports together, but at each of the airports individually.
+
+* Now, plot a single density plot for this dataset that shows the three mean daily delays per airport.
+  
+  - Some hints: the options `color` and `fill` will choose the colors of your plot groups, but you don't necessarily assign "colors" _per se_ to those options. If you `fill` your plots, the option `alpha` can be used to set the transparency of the fill. (an alpha value of 0.2 or so should look sharp). Try specifying `alpha` in different parts of the `ggplot` functions. 
+
+* By eyeballing the density plot, what airport has the highest average delay? What airport has the lowest? Do you think that this facet of the data is worth investigating more deeply? (i.e, do you think that the originating airport significantly contributes to the overall flight delays for the NYC area?)
+
+*Editorial comment: if you were to perform a statistical test on these different distributions, I'll bet that it would yield a significant p-value for certain comparisons. Based on the magnitude of the differences, however, would you want to put much stock in the significance of that p-value?*
+
+### 2) Scatter plots and `facet_wrap`
+
+Above, we calculated a 'meta-day' plot for all the data, and then improved upon it by distinguishing between good days and bad days. That was informative. We can dive deeper into this data by calculating an overall daily average for each carrier individually, and then plot them all together as a snazzy faceted plot. 
+
+To do this, we first need to generate the appropriate data.frame to guide the plotting functions. This time, we want to _add the individual, per carrier data_ to the data.frame with the overall averages, as opposed to recalculating a new data frame. 
+
+* Use `dplyr` to calculate the `metaDay` data per carrier. Distinguish between good days and bad days. Assign this output to an object named `metaDayByC`.
+
+As a hint, this is the code (not re-run) that was used to generate the `metaDay2` object above. 
+
+```{r, eval = FALSE}
+metaDay2 = flights.new %>% 
+  ungroup() %>% 
+  group_by(bad.day, hour.bin) %>% 
+  summarize(metaMean = mean(dep_delay, na.rm = TRUE), n = n(), sd = sd(dep_delay, na.rm = TRUE)) %>%
+  mutate(sem = sd/sqrt(n))
+```
+
+* Now, use the help function to learn about the function `full_join`. Use this to combine `metaDayByC` with `metaDay2`. Name the output `metaDay3`.
+
+  - Hint: the order in which you present the objects to be joined will make a slight difference.
+
+_When we joined those two data frames, did they have the same number of columns? What was the difference? What did `full_join` do to deal with this?_
+
+* Let's clean up the object `metaDay3`. Above when we plotted it, we were always filtering out this one datapoint that departed in the 2AM bin, but never actually took off. Let's use `dplyr::filter` to remove any row containing the 2 hour bin from the table. 
+
+* Let's also fix the NA problem alluded to above by replacing the newly generated NA values in the carrier column with the value "ALL".
+
+* Let's also convert the carrier column to a factor using the function `as.factor`. 
+
+* Finally, let's `relevel` the carrier column so that the reference level is "ALL". Please confirm that you not only have performed these tasks, but that they were assigned properly. Assuming you kept the name `metaDay3` throughout these adjustments, please run `levels(metaDay3$carrier)` and confirm the number of levels and what the first one is.
+
+* Now that we've cleaned up our table, plot a single plot such that each carrier is assigned a unique color. Can you make any sense out of it?
+
+* Finally, try using `facet_wrap` to plot a 6-row set of plots each showing the data for an individual carrier (facet by carrier). Include error bars. Tweak the plot so that the good days are shown as one `shape` and bad days as a different `shape`. 
+
+  - Hint: to facet on the basis of a factor, try `facet_wrap(~ some_column_name, ...)`
+
+  - Unless you are a `ggplot2` whiz, your plots probably have issues with the axes labels. Try solving for yourselves how to plot an x-axis with ticks that are only at positions 5, 8, 12, 16, 20, and 24. 
+
+If you look at the examples above, you should also be able to clean up the y and x axis labels (not the ticks, the overall label), as well as give your plot a title. 
+
+* On the basis of these data, is one or more carrier more consistently worse than another? Who is the most reliable carrier even on 'bad days'? 
+
+# Session Info:
+
+```{r}
+sessionInfo()
+```
+
