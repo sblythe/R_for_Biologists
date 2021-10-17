@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Mapping Script Annotation.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="mapping-script-annotation">Mapping Script Annotation</h1>
+<p>We have provided you with some test scripts (and test data) that you can use to verify that the Quest environment is set up properly, and that you know how to run a job. These scripts can easily be modified to accommodate any mapping job, however, it is important to understand how each of the parts work.</p>
+<p>In this example, we will go through section-by-section the <em>paired-end</em> mapping script. For those of you interested in single-end data only, this is still useful. Regardless of what you need, I encourage you to compare both the single- and paired-end scripts as you familiarize yourself with this process.</p>
+<h2 id="script-setup">Script setup</h2>
+<p>The top of the script has information that sets up how the entire script will be run.</p>
+<pre class="hljs"><code><div>#!/bin/bash
+#SBATCH --account b1042
+#SBATCH --partition genomicsguestA
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=12
+#SBATCH --time=00:20:00
+#SBATCH --mem-per-cpu=12G
+#SBATCH --job-name=test_script_PE     ## change this to job name
+#SBATCH --output=outlog               ## will write files to the current dir.
+#SBATCH --error=errlog
+</div></code></pre>
+<p>In this section we tell the computer that what follows is to be interpreted using <code>bash</code> by giving the command <code>#!/bin/bash</code>, of which <code>/bin/bash</code> is the path to <code>bash</code>. This is how all bash scripts are initialized.</p>
+<p>The lines that follow beginning with <code>#SBATCH</code> are used for the 'slurm' job manager on Quest. If you were running this locally on your own computer, or independently of the job scheduler, you would eliminate all these lines.</p>
+<p>I refer you to the Quest Genomics documentation to parse what these lines mean in general. However, I will point out what lines you should edit as you are generating reads for this class.</p>
+<p>The line <code>#SBATCH --job-name=test_script_PE</code> should be edited so that you give any new jobs a unique name. Not the end of the world if you forget to do this, but it is tidy to do so.</p>
+<p>The two lines that follow, which specify where to write out the output and the error are very useful in that they log the two <code>bash</code> output streams, <code>stdout</code> and <code>stderr</code>. The software we use to trim and map reads routinely output information to both of these streams (and not all <code>stderr</code> output is necessarily an error). These are good to capture, and the way they are specified here is that they will be written to a file named either <code>outlog</code> or <code>errlog</code> that will be located in the current directory at the time of script execution. This is, in other words, sloppy. In practice, you can specify an entire filepath after <code>#SBATCH --output=</code> so that you have control over where these files are written.</p>
+<h2 id="specifying-the-variables">Specifying the variables</h2>
+<pre class="hljs"><code><div>basedir=&lt;/full/path/to/the/project/directory&gt;     ## change to full path
+
+## make destinations                 
+mkdir ${basedir}/Trimmed_Reads             
+mkdir ${basedir}/Mapped_Reads               
+
+## load modules be verbose about versions since the defaults can change!
+module load python/3.8.4
+module load fastqc/0.11.5
+module load bowtie2/2.4.1
+module load samtools/1.10.1
+module load picard/2.21.4
+
+## assign the variables for the filepaths for this mapping
+rawdir=Raw_Data
+trimdir=Trimmed_Reads
+mapdir=Mapped_Reads
+index=/projects/b1059/RforBiologists/Bowtie_Indices/dm6/dm6 ## make sure you have correct index here
+</div></code></pre>
+<p>Once you have tailored this code to work for your particular files, so long as you are consistent in the way you name files (more on this later), these lines here should be the only ones that you need to check and change as you process different and new datasets.</p>
+<p>There are four things going on in this chunk. 1) We assign to the variable <code>basedir</code> the path to the base directory where our raw and processed data will go. You have to change this to the full path to that directory. 2) We make new directories within the base directory that will hold the output from trimming and mapping. 3) We load the necessary modules. 4) We assign to variables the remaining necessary objects for specifying input and output within the code that follows. As noted in the comment, the last object, <code>index</code>, points to a location where I have generated a bowtie index for the <em>Drosophila</em> genome version dm6. If you are mapping to the mouse genome, you want to find the location of those indices and specify the correct location here. Note the syntax of this line is <code>path/to/index/common-suffix-of-the-6-index-files</code>.</p>
+<p>Implicit in all of this is the directory structure that I suggest you use for this process.</p>
+<ol>
+<li>
+<p>Each experiment gets its own base directory.</p>
+</li>
+<li>
+<p>The raw .fastq files for the experiment resides in the base directory within a subdirectory named <code>Raw_Data</code>.</p>
+</li>
+<li>
+<p>The trimmed and mapped data will be in their own subdirectories, <code>Trimmed_Reads</code> and <code>Mapped_Reads</code>.</p>
+</li>
+<li>
+<p>For future reference, the script you run to generate these data <strong>should be stored within the base directory as well</strong>.</p>
+</li>
+</ol>
+<p>As currently written, if you set up a base directory, copy the raw data to the subdirectory <code>Raw_Data</code>, and place the script in the base directory, then you should have at the end of the script:</p>
+<pre class="hljs"><code><div>&gt;my_base_directory
+    &gt;Raw_Data
+    &gt;Trimmed_Reads
+    &gt;Mapped_Reads
+    -outlog
+    -errlog
+    -script
+</div></code></pre>
+<p>This then constitutes the sum total of your input data for downstream analysis, plus the script that generated the data, as well as the entire output of the script in the form of the output and error logs. We also generate some additional files during the analysis that will come in handy when two years down the line you need to remember how you made the data and what the mapping rate was, et cetera.</p>
+<h2 id="trimming-the-raw-data">Trimming the raw data</h2>
+<pre class="hljs"><code><div>source /projects/b1059/RforBiologists/TrimGaloreEnv/bin/activate 
+
+for file in ${basedir}/${rawdir}/*_R1_2M.fastq.gz
+  do
+   filename=$(basename &quot;$file&quot;)
+   echo &quot;path to the first read&quot;
+   echo $basedir/$rawdir/$filename
+   echo &quot;base name for the first read&quot;
+   echo $filename
+   filename2=$(echo $filename | sed &quot;s/R1/R2/g&quot;) ## swaps &quot;R1&quot; for &quot;R2&quot; in filename
+   echo &quot;path to the second read&quot;
+   echo $basedir/$rawdir/$filename2
+   echo &quot;base name for the second read&quot;
+   echo $filename2
+   echo
+   echo
+
+   trim_galore \
+   -o ${basedir}/${trimdir} \
+   --gzip \
+   --fastqc \
+   --cores 8 \
+   --paired ${basedir}/${rawdir}/${filename} ${basedir}/${rawdir}/${filename2}
+
+  done
+
+## deactivate the virtual environment...
+deactivate
+</div></code></pre>
+<p>This chunk represents a for-loop that will take some set of files in the <code>Raw_Data</code> directory and loop through them to perform adapter trimming with <code>TrimGalore</code>. I have installed <code>TrimGalore</code> locally in the class allocation and instructions on how to do this will be provided separately. There are also alternative trimmer programs that can be used instead. I like <code>TrimGalore</code> because it is simple and quick.</p>
+<p><code>TrimGalore</code> runs in a virtual environment. The first line of this chunk initializes the virtual environment:</p>
+<p><code>source /projects/b1059/RforBiologists/TrimGaloreEnv/bin/activate</code></p>
+<p>Before we discuss the for-loop, let me describe one of the issues with looping over paired-end data. Unlike single-end data, paired-end data has two fastq files per sample. One corresponds to &quot;read1&quot; and the other corresponds to &quot;read2&quot;. We need to present both of these files together to <code>TrimGalore</code> (and also to <code>bowtie2</code>, below). The way to set up a loop to process <em>both</em> of these files is to loop over the 'read1' files, and to specify the corresponding 'read2' file within each iteration of the for-loop.</p>
+<p><strong>If you are solely doing single-end data, please compare the two scripts. While you don't have to worry about regenerating the filepath to the second read, you do need to craft the for-loop call carefully as described below.</strong></p>
+<p>For-loops in <code>bash</code> have the format:</p>
+<pre class="hljs"><code><div>for x in *some range*
+    do
+        execute these commands
+    done
+</div></code></pre>
+<p>We therefore want to take each file in <code>Raw_Data</code> corresponding to 'read1' and assign it to a variable that we can manipulate within the for-loop. The test script is set up to deal with <em>the test data that I have provided</em>. When applying this script to <em>your</em> data, you will want to pay special attention to the following line that initializes the for-loop.</p>
+<pre class="hljs"><code><div>for file in ${basedir}/${rawdir}/*_R1_2M.fastq.gz
+</div></code></pre>
+<p>In plain language, what the line above says is, for each file in the raw data directory located in the base directory that ends with the text &quot;_R1_2M.fastq.gz&quot; (<code>${basedir}/${rawdir}/*_R1_2M.fastq.gz</code>), assign that filepath to the object <code>file</code> and iterate through those in the following loop.</p>
+<p>When you have your own files, you want to examine all the 'read1' files and determine what generalizations you can apply to list all of the 'read1' files and not any 'read2' files. To experiment with this, you can use the <code>ls</code> function in terminal.</p>
+<p>Another note is the <code>*</code> character, which in <code>bash</code> stands for a 'wildcard'. The <code>*</code> stands in for as few as zero additional characters of any kind. It can appear at the beginning, in the middle, or at the end of a character string to specify a filename.</p>
+<p>Moving on: within the for-loop (i.e., within <code>do</code> and <code>done</code>), the steps are that we assign to <code>filename</code> the base name of the file (i.e., we extract the filename from the full path). We do that with this command:</p>
+<pre class="hljs"><code><div>filename=$(basename &quot;$file&quot;)
+</div></code></pre>
+<p>We then report back to <code>stdout</code> some sanity checks that tell us that we can properly specify the filepath to the file of interest using solely the variables we have assigned. To do this, we use the <code>bash</code> operation <code>echo</code>, which just prints to <code>stdout</code>.</p>
+<p>Next, we generate the filename of 'read2' from that of 'read1' by substituting any text in the character string that differs between the two. This is done with this line:</p>
+<pre class="hljs"><code><div>filename2=$(echo $filename | sed &quot;s/R1/R2/g&quot;)
+</div></code></pre>
+<p>In plain language, we are assigning to <code>filename2</code> the result of a piped operation. First we <code>echo</code> <code>$filename</code>, and <code>echo</code> prints to <code>stdout</code>. However, we now invoke the <code>pipe</code> (<code>|</code>), which passes <code>stdout</code> and makes it the input (<code>stdin</code>) to the subsequent command, which in this case is <code>sed</code> (= string edit). <code>sed</code> takes the filename and exchanges the characters &quot;R1&quot; for &quot;R2&quot; using its expected syntax. Please see the manual for <code>sed</code> for more details (<code>man sed</code>).</p>
+<p>We then do another set of <code>echo</code>s to print to <code>stdout</code> additional checks that we can indeed specify the correct path to file 2.</p>
+<p><strong>One way that these scripts fail is that you mess up either the for-loop specification, or the formation of the filename for file 2. This information will be saved in the <code>outlog</code> file and you can refer to that if you run into problems.</strong></p>
+<p>Next, we finally come to running <code>TrimGalore</code>:</p>
+<pre class="hljs"><code><div>trim_galore \
+   -o ${basedir}/${trimdir} \
+   --gzip \
+   --fastqc \
+   --cores 8 \
+   --paired ${basedir}/${rawdir}/${filename} ${basedir}/${rawdir}/${filename2}
+</div></code></pre>
+<p>This is one command that I have broken up into multiple lines for readability. This is generally good practice for making readable code. To do this, I use the backslash (<code>\</code>). Here we have our first call to a <code>bash</code> function. The first command (<code>trim_galore</code>) calls the function we want to use. The rest of the command provides options and required input to the function.</p>
+<p>In plain language: we are running TrimGalore (<code>trim_galore</code>) and whatever output it generates will be sent to the indicated output directory (<code>-o ${basedir}/${trimdir}</code>). We will be compressing the output (<code>--gzip</code>), running fastQC on the trimmed data (<code>--fastqc</code>), and doing all of this with 8 (the maximum suggested) cores/threads (<code>--cores 8</code>). The input data will be paired end, and we specify the location of the two input files. <code>--paired ${basedir}/${rawdir}/${filename} ${basedir}/${rawdir}/${filename2}</code>.</p>
+<p>To explore the options available for running <code>trim_galore</code>, first activate the virtual environment as described above, and then enter <code>trim_galore</code> or <code>trim_galore -h</code> in the command line. It will print a detailed description of options to the screen.</p>
+<p>The loop will loop through all files you specify, generating trimmed, validated paired-end reads. With default settings, <code>TrimGalore</code> will drop both pairs if one of them is trimmed to less than 20 bp in length. It will automatically identify any contaminating Illumina sequencing adapter and remove it. You can specify specific ones if you like (see options).</p>
+<p>Once the looping is done, we no longer need the virtual environment, so we stop it:</p>
+<pre class="hljs"><code><div>deactivate
+</div></code></pre>
+<h2 id="mapping-reads-with-bowtie2">Mapping reads with Bowtie2</h2>
+<p>The next for-loop finishes off our mapping process, and it accomplishes a number of tasks:</p>
+<ol>
+<li>
+<p>It maps paired-end reads using <code>bowtie2</code>, outputting <code>.sam</code>.</p>
+<ul>
+<li>It also saves the mapping rate message <code>bowtie2</code> passes to <code>stderr</code>.</li>
+</ul>
+</li>
+<li>
+<p>It converts the <code>.sam</code> output to <code>.bam</code> using <code>samtools view</code>.</p>
+</li>
+<li>
+<p>It sorts the reads according to map position using <code>samtools sort</code>.</p>
+</li>
+<li>
+<p>It cleans up the resulting sorted <code>.bam</code> file using <code>Picard CleanSam</code>.</p>
+</li>
+<li>
+<p>It marks PCR/Optical duplicates (but does not remove them) using <code>Picard MarkDuplicates</code>.</p>
+</li>
+<li>
+<p>It generates an index using <code>samtools index</code>.</p>
+</li>
+<li>
+<p>It generates a summary of the &quot;sam flags&quot; using <code>samtools flagstat</code>.</p>
+</li>
+<li>
+<p>Finally, it discards intermediate files and yields, for each input pair of trimmed fastq files:</p>
+<ul>
+<li>
+<p>a <code>.bam</code> file of mapped, sorted, duplicate marked reads (<code>*.mapped.md.bam</code>)</p>
+</li>
+<li>
+<p>the <code>bowtie2</code> mapping log.</p>
+</li>
+<li>
+<p>the duplication metrics file from <code>Picard</code>.</p>
+</li>
+<li>
+<p>the flagstat summary text file</p>
+</li>
+<li>
+<p>the <code>.bam</code> index (<code>*.mapped.md.bam.bai</code>)</p>
+</li>
+</ul>
+</li>
+</ol>
+<p>Here is the code:</p>
+<pre class="hljs"><code><div>for file in ${basedir}/${trimdir}/*R1_2M_val_1.fq.gz
+  do
+    filename=$(basename &quot;$file&quot;)
+    filename2=$(echo $filename |sed &quot;s/R1/R2/g&quot;)
+    filename2=$(echo $filename2 |sed &quot;s/val_1/val_2/g&quot;)
+
+    echo &quot;Next, we test Bowtie2 on the output of TrimGalore:&quot;
+    echo ${basedir}/${trimdir}/${filename}
+    echo ${basedir}/${trimdir}/${filename2}
+
+    shortname=$(echo $filename |cut -d_ -f1-2)
+    echo
+    echo &quot;The output for this step will have a filename that contains&quot;
+    echo ${shortname}
+
+    bowtie2 \
+    -p 12 \
+    -X 2000 \
+    -x $index \
+    -1 ${basedir}/${trimdir}/${filename} \
+    -2 ${basedir}/${trimdir}/${filename2} \
+    2&gt; ${basedir}/${mapdir}/${shortname}.bowtie.mapping.log.txt | \
+    samtools view \
+    -bS - &gt; ${basedir}/${mapdir}/${shortname}.mapped.bam
+
+    samtools sort -@ 12 -m 2G -T ${basedir}/${mapdir}/temp \
+    -o ${basedir}/${mapdir}/temp1.bam \
+    ${basedir}/${mapdir}/${shortname}.mapped.bam
+
+    java -jar /software/picard/2.21.4/bin/picard.jar CleanSam \
+    INPUT=${basedir}/${mapdir}/temp1.bam \
+    OUTPUT=${basedir}/${mapdir}/temp2.bam
+
+    java -jar /software/picard/2.21.4/bin/picard.jar MarkDuplicates \
+    INPUT=${basedir}/${mapdir}/temp2.bam \
+    OUTPUT=${basedir}/${mapdir}/${shortname}.mapped.md.bam \
+    METRICS_FILE=${basedir}/${mapdir}/${shortname}.dup.metrics.txt
+
+    rm ${basedir}/${mapdir}/temp1.bam \
+    ${basedir}/${mapdir}/temp2.bam \
+    ${basedir}/${mapdir}/${shortname}.mapped.bam
+
+    samtools flagstat ${basedir}/${mapdir}/${shortname}.mapped.md.bam &gt; \
+    ${basedir}/${mapdir}/${shortname}.mapped.md.bam.FLAGSTAT.txt
+
+    samtools index ${basedir}/${mapdir}/${shortname}.mapped.md.bam
+done
+</div></code></pre>
+<p>We face the same challenge as with the <code>TrimGalore</code> step in terms of formulating both the set of 'read1' as well as 'read2' filenames for the loop. The call to the for-loop takes into account the standard nomenclature that <code>TrimGalore</code> uses when outputting validated trimmed paired-end reads.</p>
+<pre class="hljs"><code><div>for file in ${basedir}/${trimdir}/*R1_2M_val_1.fq.gz
+</div></code></pre>
+<p>Within the loop, in addition to using an identical strategy for defining the filename for the read2 data, we do something new. All of the output files will have a unique prefix that identifies it. The input data from an Illumina run often contains unnecessary information. Here, we assign to <code>shortname</code> a trimmed character string that drops unnecessary characters.</p>
+<pre class="hljs"><code><div>shortname=$(echo $filename |cut -d_ -f1-2)
+</div></code></pre>
+<p>Again, we are <code>echo</code>ing the filename we have formulated, and again we <code>pipe</code> the output of this to another function. Here we are piping to <code>cut</code>, which simply takes a character string, finds a delimiter --in this case, an underscore-- (<code>d_</code>), and returns fields 1 and 2, as delimited by the selected delimiter (<code>-f1-2</code>). Please see <code>man cut</code> for additional information.</p>
+<p>As with before <strong>this is a step that can cause errors.</strong> With consistent file-naming, however, this line can be written such that it always drops the extra (&quot;R1_2M.fastq.gz&quot;) text on the input filenames. We print to <code>stdout</code> the result of this operation, you can check it in the <code>outlog</code>, and if your script runs with funny output filenames, this is the operation to troubleshoot. Note also that <em><code>bowtie2</code> will output only one <code>.sam/.bam</code> file for a paired-end dataset</em>. No more pairs of files.</p>
+<p>Next we have a call to <code>bowtie2</code> piped to <code>samtools</code> to do the <code>.sam</code> to <code>.bam</code> conversion in one go:</p>
+<pre class="hljs"><code><div>bowtie2 \
+    -p 12 \
+    -X 2000 \
+    -x $index \
+    -1 ${basedir}/${trimdir}/${filename} \
+    -2 ${basedir}/${trimdir}/${filename2} \
+    2&gt; ${basedir}/${mapdir}/${shortname}.bowtie.mapping.log.txt | \
+    samtools view \
+    -bS - &gt; ${basedir}/${mapdir}/${shortname}.mapped.bam
+</div></code></pre>
+<p>In plain language: we are invoking <code>bowtie2</code> to do mapping. This mapping will use 12 cores <code>-p 12</code> for this task. As we will see, these are paired-end reads, and we would like to limit the output to pairs that map witin 2000 bp of one another (-X 2000). To do mapping, we need to refer to the index located at the path we specified way at the top of this script (<code>-x $index</code>). The files corresponding to the first and second reads in this paired end dataset are located at <code>-1 ${basedir}/${trimdir}/${filename} -2 ${basedir}/${trimdir}/${filename2}</code>.</p>
+<p>That could suffice for a call to <code>bowtie2</code> (we'd have to tell it where to write the output file to, however... <em>not shown here</em>). Instead, we do something a little different, and it involves some non linearity in what is going on. In <code>bash</code>, the <code>&gt;</code> character means &quot;write <code>stdout</code> to this file (followed by a filename). Preceding it with a &quot;2&quot;, as in <code>2&gt;</code> ,says, &quot;write <code>stderr</code> to this file, and continue as you were with respect to outputting <code>stdout</code>&quot;. So here, we write <code>stderr</code> (which is the output stream to which <code>bowtie2</code> prints its message about mapping statistics) to a file for later reference using:</p>
+<pre class="hljs"><code><div>2&gt; ${basedir}/${mapdir}/${shortname}.bowtie.mapping.log.txt
+</div></code></pre>
+<p>This is then followed by a <code>pipe</code>, which transfers <code>stdout</code> (i.e., the mapped data) to <code>samtools view</code>. In plain language: all the mapped data is coming through the pipe and is presented to <code>samtools view</code> which can be specified to take a piped input using the subtle option <code>-</code> (a hyphen). The input data is <code>.sam</code> formatted, but we want to output <code>.bam</code>, which we achieve by combining the options <code>-bS</code>, which could just as easily be written <code>-b -S</code>. Using the <code>&gt;</code> operator, we write the output (<code>stdout</code>) to the file <code>${basedir}/${mapdir}/${shortname}.mapped.bam</code>.</p>
+<p>This gets us our initial mapping, but the entries are in the order they were imaged on the flowcell, and not in the order of where they map on the genome. We will fix that next.</p>
+<p><strong>I should say at this point that this is but one way to do your call to <code>bowtie2</code>. I encourage you to really read the <code>bowtie2</code> manual and explore some of the available options, particularly those regarding the sensitivity/effort of the mapper, what to do with multimappers, as well as whether the mapping should be end-to-end or locally anchored.</strong></p>
+<p>Next, we use a call to <code>samtools sort</code> that will rearrange the reads in the order with which the chromosomes were listed in the reference genome we used for making the index.</p>
+<pre class="hljs"><code><div>samtools sort -@ 12 -m 2G -T ${basedir}/${mapdir}/temp \
+    -o ${basedir}/${mapdir}/temp1.bam \
+    ${basedir}/${mapdir}/${shortname}.mapped.bam
+</div></code></pre>
+<p>In plain language, we are using <code>samtools sort</code> to sort our reads located at <code>${basedir}/${mapdir}/${shortname}.mapped.bam</code>. We will be employing 12 cores/threads (<code>-@ 12</code>) and using up to 2 gigabytes of memory (<code>-m 2G</code>). When sorting occurs, the program sets aside bins of reads in temporary files that it erases when the task is done. Those temporary files will be named <code>-T ${basedir}/${mapdir}/temp</code>. The sorted <code>.bam</code> file will be saved at <code>-o ${basedir}/${mapdir}/temp1.bam</code>. This might seem a little confusing: I have chosen to output the sorted reads to a file named <code>temp1.bam</code>. The reason for this is that we are still going to be changing things about this <code>.bam</code> file before it is done, and we don't want to keep this intermediate. Hence the name. We <em>could have</em> piped the output of the prior step (<code>samtools view</code>) into this one, but I have found sometimes that I don't want that (like, I do a step between <code>view</code> and <code>sort</code>, and so historically I haven't had the <code>pipe</code> between these two steps.)</p>
+<p>We can't <code>pipe</code> the next steps however. We now go to the <code>Picard</code> program to run <code>CleanSam</code> followed by <code>MarkDuplicates</code>. <code>Picard</code> is a <code>java</code> program and runs with slightly different syntax. As far as I can tell there is no way to easily pipe <code>stdout</code> to a call to <code>java</code>, but I could be wrong. Here's the code:</p>
+<pre class="hljs"><code><div>java -jar /software/picard/2.21.4/bin/picard.jar CleanSam \
+    INPUT=${basedir}/${mapdir}/temp1.bam \
+    OUTPUT=${basedir}/${mapdir}/temp2.bam
+
+    java -jar /software/picard/2.21.4/bin/picard.jar MarkDuplicates \
+    INPUT=${basedir}/${mapdir}/temp2.bam \
+    OUTPUT=${basedir}/${mapdir}/${shortname}.mapped.md.bam \
+    METRICS_FILE=${basedir}/${mapdir}/${shortname}.dup.metrics.txt
+</div></code></pre>
+<p>In plain language, we first invoke <code>Picard CleanSam</code> (<code>java -jar /software/picard/2.21.4/bin/picard.jar MarkDuplicates</code>), taking as input (<code>INPUT=</code>) the file path to the output of the call to <code>samtools sort</code> (<code>.../temp1.bam</code>), and outputting a new temporary file, <code>OUTPUT=.../temp2.bam</code>. Next we invoke <code>Picard MarkDuplicates</code> (<code>java -jar /software/picard/2.21.4/bin/picard.jar MarkDuplicates</code>) taking as input the output of <code>CleanSam</code>, and outputting two files, 1) the <code>OUTPUT</code>, which we give a nice name (<code>${basedir}/${mapdir}/${shortname}.mapped.md.bam</code>), as well as a <code>METRICS_FILE</code>, which has a distinguishing filename itself.</p>
+<p>This essentially <strong>completes</strong> the mapping process. However, we do three more things that will help in the long run.</p>
+<p>Next we discard the temporary files as well as the original mapping. The duplicate-marked <code>.bam</code> file contains the same information as the original file, but has the added benefit of being sorted as well as having its duplicates marked in case we want to remove them. Here:</p>
+<pre class="hljs"><code><div>rm ${basedir}/${mapdir}/temp1.bam \
+    ${basedir}/${mapdir}/temp2.bam \
+    ${basedir}/${mapdir}/${shortname}.mapped.bam
+</div></code></pre>
+<p>Which should be self-explanatory how we remove (<code>rm</code>) these files.</p>
+<p>Next, we use <code>samtools flagstat</code> to write a text file containing a breakdown of the <code>.sam flags</code> for our file. Please see <a href="https://broadinstitute.github.io/picard/explain-flags.html">this site</a> for further information about flags.</p>
+<pre class="hljs"><code><div>samtools flagstat ${basedir}/${mapdir}/${shortname}.mapped.md.bam &gt; \
+    ${basedir}/${mapdir}/${shortname}.mapped.md.bam.FLAGSTAT.txt
+</div></code></pre>
+<p>And finally, we create a <code>.bam index</code> for our file. These indices are not obviously useful, but many downstream applications use them (and expect to find them in the same directory as the <code>.bam</code> file) when accessing the data. It is supremely annoying to have to stop an analysis to create indices. Let's do it here.</p>
+<pre class="hljs"><code><div>samtools index ${basedir}/${mapdir}/${shortname}.mapped.md.bam
+</div></code></pre>
+<p>This completes one round of the loop.</p>
+<h2 id="afterword">Afterword</h2>
+<p>You are putting forth a lot of effort at this moment just to do the first step of your genomics analysis. By the time all is said and done, trimming and mapping will comprise just 1% of the time you spend with this data, and these steps will be a distant memory. You will probably never touch the raw or the trimmed reads ever again. However, once you go to publish these data, all of a sudden you need to have access to these files again, and not only that-- you need to provide numbers.</p>
+<p>You <em>should</em> report in a publication the total number of reads per sample, mapping rates, and the number of reads that are discarded due to quality issues or trimming. You <em>have to</em> report these numbers when you submit the raw data to Gene Expression Omnibus/Sequence Read Archive. Nothing is more depressing than thinking you are a day away from submitting a manuscript than realizing that you first have to get a GEO accession number, and then seeing how much work it is to put together the submission to GEO.</p>
+<p>In the example script, I have included some calls to <code>echo</code> that will report the version of all the critical programs we just used. These will be recorded in <code>outlog</code> and may not seem valuable now, but will be incredibly valuable when you are writing your incredibly detailed Materials and Methods section of your first paper/dissertation. This information is also requested by GEO in cases where you submit processed data. Please remember to give credit where credit is due. Each of these applications are cite-able, and you should be sure to do so when you write up your results.</p>
+<p>The critical numbers are present in these output files that we have generated. Total number of reads in the original and trimmed fastQ files can be found in the <code>TrimGalore</code> trimming report, located in the <code>Trimmed_Reads</code> directory. The overall mapping rate, as well as more nuanced breakdowns of how things mapped can be found in the <code>Mapped_Reads</code> directory either in the <code>mapping.log.txt</code> or the <code>flagstat</code> output. In a worst-case scenario, you are cutting and pasting these numbers into the GEO Submission spreadsheet. In a best case scenario, you learn a ton of <code>bash</code> scripting and can write a function that will scrape this information from these files and populate a tab-delimited text document. In whatever case, having this data in a predictable location now is waaaay better than needing to figure out at the last minute how to generate these metrics when you are months or years removed from the initial mapping process.</p>
+<p>In any case, the way that this script is set up, it should not only help move your analysis along at this early stage of the research, but should also help reduce headaches at the end of the project. This is definitely something that is missed when the mapping is done entirely in Galaxy, or if the mapping is done in an improvised manner in <code>bash</code> without keeping all the relevant files and information.</p>
+
+</body>
+</html>
