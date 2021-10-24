@@ -1,0 +1,616 @@
+---
+title: 'Class 10 Activities: Genomic Ranges'
+author: "Shelby Blythe"
+date: "10/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+The goals of our activity today are to
+
+1) Familiarize yourselves with some of the moves you can do with Genomic Ranges and related packages.
+
+2) Expand upon some of the basic ideas presented in the class lecture.
+
+3) Try importing at least one of your .bam files using Genomic Alignments + Genomic Ranges.
+
+*Note: I am not 100% certain that particularly large .bam files will not severely tax your computers.* There is a chance that, depending on your computation set-up, you will want to do the conversion of data to Genomic Ranges objects on the cluster, and import those data to your computer. This will be particularly an issue next class when we show you how to generate coverage plots for your reads.
+
+# Discussion/Exercises:
+
+First, let's clear the workspace and import packages we will need:
+
+```{r}
+rm(list = ls()); gc()
+
+suppressPackageStartupMessages({
+    library(GenomicRanges)
+    library(GenomicAlignments)
+    library(Rsamtools)
+    library(BSgenome.Dmelanogaster.UCSC.dm6)
+    library(tidyverse)
+    library(ggthemes)
+    library(TxDb.Dmelanogaster.UCSC.dm6.ensGene)
+    library(GenomicFeatures)
+})
+```
+
+
+## 1) Importing a .bam file
+
+We need a GRanges object to work on, and rather than make up some fake data, we can just import our mapped reads. I have deposited in the class repository the paired-end and single-end read .bam files from our demo last week. You can either work on these or you can download your own mapped *test* datasets from your Quest folders. (You'll have a chance to work with your own data soon enough). 
+
+Let's start with the paired-end reads. We first need to tell the computer where to look for the data. Assign the path to the directory that contains these data to a variable `PEdir`. Edit the line below to match the path to these data on your systems. 
+
+```{r}
+PEdir = "/Users/sblythe/Dropbox/R_for_Biologists_2021/data/testbams/PE_Bam"
+```
+
+Make a note if you include the final "/" or not. Out of habit, I do not, but I don't think it makes a difference whether you do or not. The reason I do not is because I like to consciously add the file separator "/" when I make character strings that represent filepaths. 
+
+Now use `list.files` with the `pattern` option to pick only the files that correspond to the .bamfile(s) you want. For instance, you *don't* want the flagstat output to be listed. In the code below, the dollar sign at the end of the pattern string means "end of string". A 'hat' (^) would mean beginning of string. These are part of "regular expressions" that we have touched on in class before. Importantly, the asterisk that we used in `bash` filename queries *does not work here in the same way*! Assign this to the object `PEfiles`:
+
+```{r}
+PEfiles = list.files(PEdir, pattern = ".md.bam$", full.names = TRUE)
+
+PEfiles
+```
+
+Here we should have one file that ends in ".bam". To see what `list.files` does for you, try running it without the `pattern` option. Experiment with what the output looks like if you set `full.names` to `FALSE`.
+
+Now, we have a filepath that we can use to import our data. There is only one file, so this is an easy, one-liner. When you have more than one file (as one normally does), we have some additional tricks to reduce repetitive typing. We'll discuss this in the following unit.
+
+Let's use `readGAlignmentPairs` to import these data. 
+
+Recall from the lecture, we can use `readGAlignmentPairs` to import all the entries in a .bam file, but that we rarely want all of the entries. We usually just want things that are uniquely mapped at high confidence (map-quality). To *filter* the .bam file, we need a helper function `ScanBamParam` which allows us to state particularly which criteria we want to filter for.  
+
+In this chunk, I assign to an object `params` the output of `ScanBamParam`. Note, however, I'm doing this to be crystal clear, and normally I just specify this within the call to `readGAlignmentPairs`. 
+
+```{r}
+params = ScanBamParam(
+    flag = scanBamFlag(
+        isPaired = TRUE,
+        isProperPair = TRUE,
+        isSecondaryAlignment = FALSE,
+        isDuplicate = NA
+        ),
+    mapqFilter = 10
+)
+```
+
+Here, we are setting up a filter that will only pass properly paired reads that do not represent secondary mappings and that have a map quality of 10 or greater. Note, `isDuplicate = NA` allows me to import all reads regardless of how the duplicate flag is set. If you only wanted non-duplicate reads, you could set this to `FALSE`. If you for some reason only wanted the duplicates, you could set this to `TRUE`. 
+
+Now we use this and our filepath to import our reads to the R environment. Note this is not yet a GRanges object.
+
+```{r}
+PEraw = readGAlignmentPairs(
+    file = PEfiles,
+    param = params
+)
+
+PEraw
+```
+
+You should have something that is around 1.64M reads. This is small, as far as reads go. On my 2017 MacBook Pro with a 3.1 GHz processor and 8 Gb of memory, this operation took about 13 seconds. 
+
+```{r, eval = FALSE}
+system.time(readGAlignmentPairs(
+    file = PEfiles,
+    param = params
+))
+```
+
+To convert this to a GRanges object, we now run the `granges` helper function. 
+```{r}
+PEgr = granges(PEraw)
+
+PEgr
+```
+
+We now should have a GRanges object. 
+
+1) Each row of the object for a paired-end dataset represents the full extent of a sequenced, mapped fragment from the end of mate 1 to the end of mate 2. Compare for line 1 the ranges in the GRanges object with the two ranges in line one of the `PEraw` object. `PEraw` tells you the extent of each mate pair. 
+
+2) The strand value reflects the strand of mate 1.
+
+3) There are no metadata columns.
+
+4) There is some (incomplete) genome information.
+
+Let's have a look at the genome information.
+
+```{r}
+seqinfo(PEgr)
+```
+
+We can see that there are 1870 sequences, and that the total length of each of those sequences are known. Whether each sequence is circular, and from what genome assembly the sequence is derived is unknown. This information is not propagated through the sam/bam format. We can clean this up if we have a `BSgenome` object corresponding to the reference genome to which the data were mapped. 
+
+My recommendation is to add this information now. The following lines will sync up the seqinfo of your data with that of the reference genome to which these data were mapped (dm6)
+
+```{r}
+seqlevels(PEgr) = seqlevels(BSgenome.Dmelanogaster.UCSC.dm6::Dmelanogaster)
+seqinfo(PEgr) = seqinfo(BSgenome.Dmelanogaster.UCSC.dm6::Dmelanogaster)
+genome(PEgr) = 'dm6'
+
+PEgr
+```
+
+Another issue is that at least for genome assemblies like that of the fly, *we generally don't care about the 'weird' assemblies like `chrY_CP007114v1_random`, and can safely discard them*. 
+
+To get rid of them, we can use good ol' *logical indexing* (remember the first week of class) to keep only the assemblies/chromosomes we want. 
+
+**First, a note about addressing positions within a GRanges object** Although it looks like a data.frame, GRanges objects only are indexed by *rows*. You should not use [row, column] notation. Just [row]. The filtering therefore looks like this:
+
+```{r}
+keepers = paste0('chr', c('2L','2R','3L','3R','4','X'))
+
+PEgr = PEgr[seqnames(PEgr) %in% keepers]
+
+PEgr
+```
+
+We've thrown out about half of our mapped reads! This is helpful, but note that although our data only contains mappings to six chromosomes, the `seqinfo` note at the bottom is still stating that we have 1870 chromosomes. We can fix that with the function `seqlevelsInUse`.
+
+```{r}
+seqlevels(PEgr) = seqlevelsInUse(PEgr)
+
+PEgr
+```
+
+We have now imported a paired-end .bam file, converted it to Genomic Ranges, sync-ed up its metadata with the reference genome assembly, and have trimmed that information to the reads we want to work with. Let's move on to some basic GRanges operations. 
+
+## 2) Basic GRanges Operations
+
+The power of this package comes from a bunch of built-in functions for querying features of your data. 
+
+To get (and/or set) all start positions, we use the function `start`. 
+
+```{r}
+head(start(PEgr),20)
+```
+
+Similarly, there is a function `end` that gives you the ends. 
+
+```{r}
+head(end(PEgr), 20)
+```
+
+The function `width` tells you the difference between `start` and `end`. 
+
+```{r}
+head(width(PEgr), 20)
+```
+
+We can see that we have a variety of widths in these data. (This is a bit of an ATAC-seq dataset, so it is expected that we have a bunch of different fragment sizes.)
+
+To plot the distribution of these widths, we can either use the base-R `hist` or `density` function, or `ggplot2` with the appropriate `geom_`. 
+
+```{r}
+data.frame(w = width(PEgr)) %>% 
+    ggplot(aes(x = w)) +
+    geom_histogram(
+        color = "indianred", 
+        fill = 'tomato', 
+        alpha = 0.2, 
+        binwidth = 1) +
+    theme_clean() +
+    labs(title = "Mapped Read Fragment Size Distribution",
+         x = "fragment size (bp)")
+```
+
+There are loads of additional functions that are potentially of use. One that we will be using in our next class is `coverage`:
+
+```{r}
+coverage(PEgr)
+```
+
+The term `Rle` in the output above demonstrates how GRanges objects with millions of entries can take up a relatively smaller memory footprint than a complete table. `Rle` stands for "Run Length Encoding", and in the output of `coverage`, it is telling us --for instance-- for chr2L, the first 5426 positions have a zero entries that overlap, then there are 52 positions with one overlap, then 18 positions have zero, and 70 have 1... and so on. 
+
+The chromosome names (seqnames) are also encoded this way:
+
+```{r}
+seqnames(PEgr)
+```
+
+As are the strands. 
+
+We can `resize` the fragments to a fixed width using the `resize` function. You probably wouldn't want to do this on your raw PE data, but it is often useful in other contexts. As a demonstration related to our previous exploration of `width` and plotting:
+
+```{r}
+data.frame(w = width(resize(PEgr, width = 36, fix = 'center'))) %>% 
+    ggplot(aes(x = w)) +
+    geom_histogram(
+        color = "indianred", 
+        fill = 'tomato', 
+        alpha = 0.2, 
+        binwidth = 1) +
+    theme_clean() +
+    labs(title = "Resized Fragment Size Distribution",
+         x = "fragment size (bp)")
+```
+
+(Everyone now has the same `width`.)
+
+More usefully, resize can be combined with functions like `rnorm` to simulate a set of fragment widths relative to a statistical (here, normal) distribution.
+
+```{r}
+set.seed(2021)
+data.frame(w = width(resize(PEgr, width = rnorm(length(PEgr), mean = 36, sd = 5), fix = 'center'))) %>% 
+    ggplot(aes(x = w)) +
+    geom_histogram(
+        color = "indianred", 
+        fill = 'tomato', 
+        alpha = 0.2, 
+        binwidth = 1) +
+    theme_clean() +
+    labs(title = "Resized Fragment Size Distribution",
+         x = "fragment size (bp)")
+```
+
+Look at that warning! You'll see it all the time. If you read it, it basically says: whatever you did, you specified some genomic ranges that are beyond the allowable sequence ranges for this chromosome assembly (either negative numbers, or numbers greater than the chromosome assembly lengths). 
+
+One additional function that is useful for avoiding this error (or fixing this error) is `trim`, which will take a set of Genomic Ranges and `trim` them so that no ranges extend into forbidden territory.
+
+## 3) Working with multiple .bam files: GRangesLists and `lapply`
+
+You will usually have more than one .bam file to work with, whether due to there being replicates or different experimental conditions that you want to compare. *You do not need to import them independently and name them all something different.* You can, if you want to, of course, but there is an easier way to work with them. 
+
+Remember back to our first class: we mentioned this data type in `R` called "lists" that we'd come back to one day? Today's the day. 
+
+A "list" object is an object that can hold data of different shapes and types all together. For instance, if we have two related data.frames `a` and `b` from related observations but that have differing numbers of rows:
+
+```{r}
+a = data.frame(animal = c('dog','cat','cat','gerbil'), fun = c(13, 2, 3, -1))
+b = data.frame(animal = c('gerbil','cat','dog'), fun = c(0, 8, 11))
+
+a
+b
+```
+
+One way to handle this would be to create an identifier column that distinguishes experiment 'a' from experiment 'b' and then combine the data-frames row-wise. We could then operate on the different experiments by filtering on the identifier column. 
+
+Sometimes, the data don't have the same number of columns, however, and it is impossible to combine the two data.frames. Sometimes, you just want to keep them separate for whatever reason. 
+
+This is where list objects become useful. A "list" in R is constructed using the function `list`.
+
+```{r}
+my.list = list(exp1 = a, exp2 = b)
+my.list
+```
+
+To access the individual data sets, you have two options:
+
+```{r}
+my.list$exp1
+```
+
+The dollar notation works (if you've named your list entries). Alternatively, we use the *double bracket*
+```{r}
+my.list[[1]]
+my.list[["exp1"]]
+```
+
+To access the first row of the second list entry, we combine *double* and *single* brackets like so:
+
+```{r}
+my.list[[2]][1,]
+```
+
+If we now want to perform an operation on *each element of the list*, you can imagine that we could create a `for-loop` that operates over [[1]], then [[2]]. That will work. However, a sometimes simpler option is the function `lapply`, which can take as an input a list object, and perform a function or operation on it. 
+
+We haven't introduced the `apply` family of functions in `R` mostly because they are inherently confusing and can often be approximated by a `for-loop` or you can build your life around `dplyr` and not have to think about it. Working with multiple GRanges objects is one place where `lapply` can help. 
+
+In general, `lapply` takes as input some vector or list, and performs a function on it. 
+
+```{r}
+test = lapply(c(1:3), function(x) {
+    cat('lapplying on value ')
+    cat(x)
+    cat('\n')
+    })
+```
+
+In this form, this is not unlike a `for-loop`. In the example above, the first argument (`c(1:3)`) is not unlike the `for(i in 1 : 3)` that we use to initialize a `for-loop`. But `lapply` feeds this information to a `function` in the sequence that it is provided. We then say `function(x)`, which tells the loop to take the first value, and pass it to the following function as the object `x`. Then it performs the function designated within the curly braces.
+
+`lapply` will output a `list` object in most cases as well. 
+
+Where `lapply` shines, however, is that if you give it a `list` as input, it automatically *operates on each element of the list in succession*. 
+
+```{r}
+lapply(my.list, function(x) {
+    mean(x[,2])
+})
+```
+
+Of course, the reason to introduce this is because there is a `list` manifestation of the GRanges object called a `GRangesList`. These are particularly useful if you have >1 .bam file to work with. Again, the benefit is that all of your reads will be part of a list object, and you can perform operations on each imported GRanges object using `lapply`. 
+
+Let's demonstrate this by importing the *single-end* data that we generated. As before, we first need to tell `R` where to look.
+
+```{r}
+SEdir = "/Users/sblythe/Dropbox/R_for_Biologists_2021/data/testbams/SE_Bam"
+SEfiles = list.files(SEdir, pattern = ".md.bam$", full.names = TRUE)
+
+SEfiles
+```
+
+Here, we have two files. As before, we could import them individually and assign them to different objects in our workspace. However, we will demonstrate the `GRangesLists` and `lapply` for this example. 
+
+Note, also, that we use a different function and different parameters to import a single-end dataset.
+
+```{r}
+SEparams = ScanBamParam(
+    flag = scanBamFlag(
+        isUnmappedQuery = FALSE, 
+        isDuplicate = NA),
+    mapqFilter = 10
+)
+
+SEraw = lapply(SEfiles, function(x){
+    out = readGAlignments(
+        file = x, 
+        param = SEparams
+        )
+    
+    out = granges(out)
+    return(out)
+})
+
+SEgr = GRangesList(lapply(SEraw, function(x) {
+    g = granges(x)
+    
+    seqlevels(g) = seqlevels(BSgenome.Dmelanogaster.UCSC.dm6::Dmelanogaster)
+    seqinfo(g) = seqinfo(BSgenome.Dmelanogaster.UCSC.dm6::Dmelanogaster)
+    genome(g) = 'dm6'
+    
+    g = g[seqnames(g) %in% paste0('chr', c('2L','2R','3L','3R','4','X'))]
+    
+    seqlevels(g) = seqlevelsInUse(g)
+    
+    return(g)
+}))
+
+SEgr
+```
+
+(I've done everything in three separate steps in the chunk above. This is for clarity, but normally I would do all of this in one go.)
+
+**It is good practice to *name* each element of your GRangesList.** Note that the order of the list is the order of the filenames. We can make a 'shortname' from the filenames we used to generate it and use that to append names to the list. Here we can invoke the `stringr` functionality from tidyverse.
+
+```{r}
+shortnames = basename(SEfiles)
+shortnames
+```
+(`basename` gets the filename at the end of the full path)
+
+```{r}
+shortnames = str_remove(shortnames, ".mapped.md.bam")
+shortnames
+```
+(remove the stuff we don't want)
+```{r}
+names(SEgr) = shortnames
+```
+(and name the list.)
+
+Note: If you use `lapply` on a `GRangesList` object, and want to get `GRangesList` formatted output, you need to encase the call to `lapply` with `GRangesList()`. Otherwise, the output of `lapply` will be just a regular `list`.
+
+## 4) Counting over regions of interest.
+
+We discussed in class how to use the `GenomicFeatures` coupled with a `TxDb` object to pull out genomic features of interest in a GRanges format. Let's explore that a bit more. 
+
+Say that our single-end data above represented RNA-seq reads. It would then be incredibly useful to be able to assign these count data to individual genes. 
+
+(Please explore the `GenomicFeatures` package on your own in addition to doing these exercises. It will probably make your life easier in more than one way, beyond what we can cover in this class.)
+
+Let's get all the exons in the *Drosophila* genome, grouped by gene
+
+```{r}
+exbygn = exonsBy(TxDb.Dmelanogaster.UCSC.dm6.ensGene, by = 'gene')
+
+class(exbygn)
+```
+
+Here we have a `GRangesList` object. 
+
+```{r}
+exbygn
+```
+
+Explore this, but hopefully you can see that each list element is now a gene (represented by a gene name identifier "FBgn..."). Within each list element is the location of each exon in the gene in GRanges format. 
+
+To count, we now can use our new friend, `lapply`, with a `GenomicRanges` function called `countOverlaps`. `countOverlaps` takes as input one or two GRanges objects (e.g., `(exbygn, SEgr[[1]])`), and returns the number of times the second thing contains a record that overlaps an element in the first thing. 
+
+```{r}
+head(countOverlaps(exbygn, SEgr[[1]]))
+```
+
+The above chunk will be a vector as long as `exbygn`. The other way around:
+
+```{r}
+head(countOverlaps(SEgr[[1]], exbygn))
+```
+
+This version will be as long as `SEgr[[1]]`. **Be mindful of what order you present arguments to `countOverlaps`.**
+
+It also works on a GRangesList like `exbygn`, where each list element is related. 
+
+```{r}
+head(countOverlaps(exbygn, SEgr[[1]]))
+```
+
+The above command returns the sum of elements in `SEgr[[1]]` that overlap any element in a gene in `exbygn`. Things get weird if *both* sides of the call to `countOverlaps` is a GRangesList. We can see this if we make a `table` of the output of the following function calls (and use `head` to limit the output).
+
+```{r}
+head(table(countOverlaps(exbygn, SEgr[[1]])), 10)
+head(table(countOverlaps(exbygn, SEgr)), 10)
+```
+
+If both arguments passed to `countOverlaps` are lists, then the return is the number of hits per gene per list element of the `SEgr` object. Because `SEgr` is two elements long (from the list perspective), the output can therefore only be either zero, one, or two. That is not what we want. We can therefore lapply over the `SEgr` object to get the results of `countOverlaps` per element of `SEgr`.
+
+```{r}
+counts.per.gene = lapply(SEgr, function(x){
+    out = countOverlaps(exbygn, x)
+    return(out)
+})
+
+class(counts.per.gene)
+```
+
+Don't print the output to screen. It is now a list that has N(`SEgr`) entries (= 2), and each entry has N(`exbygn`) values (= 17807) as a named vector. 
+
+What we want to do now is to make a table. This is tricky and annoying to do, but the fastest and quickest shortcut to get your data *out* of a list format and *into* a data.frame format is another obscure R function called `do.call`. 
+```{r}
+counts.table = as.data.frame(do.call('cbind', counts.per.gene))
+
+head(counts.table)
+```
+If we named the GRangesList, those names propagate to the column names of our table. 
+
+If this were real data, you could normalize each column by Counts-Per-Million as well as total exon/gene length, and begin exploring differences between your two samples. 
+
+These however are different ends of a paired-end experiment, so it will not be informative to do this. (Although I am a little surprised that the number of mapped reads is so low for the second mate pair dataset... Not sure what that's about.)
+
+## 5) Your Data:
+
+Given what you've learned here, begin by trying to import one of your .bam files to R. Once you've imported it
+
+1) plot the fragment length distribution (if paired-end)
+2) count the number of records that overlap a genomic region of interest.
+
+Depending on what your data are, certain regions of interest are more interesting than others. 
+
+## Appendix: Distinguishing "Genic" and "Intergenic" regions.
+
+One last demonstration is how to get intergenic regions. This will allow us to demonstrate one last powerful feature of these packages. 
+
+There is no "intergenic" genomic feature in the `GenomicFeatures` package. What we do have, however, are the locations of the genes:
+
+```{r, message = FALSE, warning = FALSE}
+dros.genes = GenomicFeatures::genes(TxDb.Dmelanogaster.UCSC.dm6.ensGene)
+
+dros.genes
+```
+
+These are ordered by their gene ID numbers. Let's sort them into normal 'genomic' order using the `sort` function:
+
+```{r}
+dros.genes = sort(dros.genes)
+
+dros.genes
+```
+
+We can throw out 'genes' that map to yucky chromosomes again by logical indexing, but this time, let's just filter based on the seqnames in a different GRanges object:
+
+```{r}
+dros.genes = dros.genes[seqnames(dros.genes) %in% seqnames(SEgr[[1]])]
+seqlevels(dros.genes) = seqlevelsInUse(dros.genes)
+
+dros.genes
+```
+
+Ok: Philosophical question. "What is an intergenic region?"
+
+_This is for **you** to decide._
+
+Let's say that we want to call intergenic regions all of the DNA sequence that is at least 5 kb away from any annotated gene. 
+
+We can therefore 'widen' each gene by 5 kb from the beginning, and 5 kb from the end. To do that, we don't use `resize`, but instead we just add to each end sequentially:
+
+Currently, the widths of the last six genes are:
+```{r}
+orig = tail(width(dros.genes))
+orig
+```
+
+We can now subtract 5k from the starts and add 5k to the ends to widen. 
+
+```{r}
+start(dros.genes) = start(dros.genes) - 5000
+end(dros.genes) = end(dros.genes) + 5000
+```
+
+This will yield errors, so we clean it up with `trim`.
+
+```{r}
+dros.genes = trim(dros.genes)
+
+dros.genes
+```
+
+And we can check that this worked by checking the new widths of the last six genes in the list. 
+
+```{r}
+new = tail(width(dros.genes))
+
+new
+new - orig
+```
+
+And all the new ranges are wider (except in the case where one of them was close to the end of the chromosome and was trimmed as above). *Note, I did this on the end of the list using `tail` because those are all on the minus strand and I wanted to be sure that the arithmetic from `start` and `end` was not strand-aware.*
+
+OK. Now all the genes have been fattened by 5 kbp on either end. Before we figure out how to get the sequence ranges *between* these genomic ranges, we want to simplify the problem for ourselves. **We have to do two things.**
+
+1) We don't care about strand information anymore. 
+
+2) We have overlapping regions, and we can reduce them. 
+
+First we fix the strand information:
+
+```{r}
+strand(dros.genes) = "*"
+
+dros.genes
+```
+
+(easy enough)
+
+Next we `reduce` this list to merge together any overlapping genomic ranges in our fat gene list. 
+
+```{r}
+dros.genes = GenomicRanges::reduce(dros.genes)
+
+dros.genes
+```
+
+Now, two remarkable things happened here. 1) All the metadata went away. This makes sense in that with the merge, it is unclear how to assign gene names or other metadata elements to new ranges that contain several records merged together. 2) After all that, there remain only 987 genomic ranges. We started with 17k. Compact genome...
+
+The final step is to use a GRanges function called `gaps` to call the spaces in-between a set of genomic ranges, limited by the seqinfo provided in the genome metadata that we went through all the trouble to append to these datasets. 
+
+```{r}
+dros.intergenic = gaps(dros.genes)
+
+dros.intergenic
+```
+
+Not done yet. There is one annoying feature about `gaps` is that it provides the gaps on all three 'strands' (+, -, or *). We need to drop the ranges on the + and - strand to have our final list.
+
+```{r}
+dros.intergenic = dros.intergenic[strand(dros.intergenic) == '*']
+
+dros.intergenic
+```
+
+The `dros.intergenic` and the `dros.genes` object should be perfectly opposite, non-overlapping ranges that together overlap the entirety of the (euchromatic) genome assembly. 
+
+Finally, let's say something about the average intergenic region width in the *Drosophila* genome. 
+
+```{r}
+data.frame(w = log10(width(dros.intergenic))) %>% 
+    ggplot(aes(x = w)) +
+    geom_density(color = 'midnightblue',fill = 'darkblue') +
+    theme_clean() +
+    labs(title = "Distribution: Intergenic Region Size (log10)",
+         x = "log10(Intergenic Region bp)")
+```
+
+And, looking at this, we have a roughly log-normal distribution with a mean around 10,000 bp. 
+
+```{r}
+sessionInfo()
+```
+
