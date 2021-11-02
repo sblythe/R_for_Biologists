@@ -171,8 +171,16 @@ pre code {
 </div>
 
 
-<p>When running MACS2 on the Quest command line for paired-end reads, you will need to take several things into consideration. This document demonstrates how to do this for paired-end data with a comment at the end about single-end data.</p>
-<p>This is the help file for MACS2</p>
+<p>When running MACS2 on the Quest command line for paired-end reads, you will need to take several things into consideration. This document demonstrates how to do this for paired-end data with a comment at the end about single-end data. It is not meant to be a comprehensive tutorial, but rather an example of one particular call to the peak caller via the command line, with commentary.</p>
+<ul>
+<li>Please read how MACS peak calling works by reading the original publication:</li>
+</ul>
+<p>Zhang, Y., Liu, T., Meyer, C.A. et al. Model-based Analysis of ChIP-Seq (MACS). Genome Biol 9, R137 (2008). <a href="https://doi.org/10.1186/gb-2008-9-9-r137" class="uri">https://doi.org/10.1186/gb-2008-9-9-r137</a></p>
+<ul>
+<li>This is a particularly good overview of the MACS2 peak calling process:</li>
+</ul>
+<p><a href="https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html" class="uri">https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html</a></p>
+<p>This is the help file for MACS2 that explains the command line requirements and available options for this version of MACS2:</p>
 <pre class="bash"><code>macs2 callpeak -h</code></pre>
 <pre><code>## usage: macs2 callpeak [-h] -t TFILE [TFILE ...] [-c [CFILE [CFILE ...]]]
 ##                       [-f {AUTO,BAM,SAM,BED,ELAND,ELANDMULTI,ELANDEXPORT,BOWTIE,BAMPE,BEDPE}]
